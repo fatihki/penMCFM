@@ -356,35 +356,55 @@ display: none;
 <h1>penMCFM: Weibull Mixture Cure Frailty Model with High-dimensional
 Covariates</h1>
 <p>In this work, we introduce a novel extension of the Weibull mixture
-cure model by incorporating frailty, employed to model the latency
-component. Additionally, high-dimensional covariates are integrated into
-both the cure rate and latency parts of the model, providing a
-comprehensive approach to analyze high-dimensional omics data.</p>
-<p>We apply the novel approach to analyze genome-wide RNAseq gene
-expression data from bulk breast cancer patients sourced from The Cancer
-Genome Atlas (TCGA).</p>
+cure model that incorporates a frailty component, employed to model an
+underlying latent population heterogeneity with respect to the outcome
+risk. Additionally, high-dimensional covariates are integrated into both
+the cure rate and survival part of the model, providing a comprehensive
+approach to employ the model in the context of high-dimensional omics
+data.</p>
+<p>We perform variable selection via an <strong>adaptive elastic-net
+penalization</strong>, and propose a novel approach to inference using
+the <strong>expectation–maximization (EM) algorithm</strong>.</p>
+<p>We apply the novel approach to analyze <strong>RNAseq gene expression
+data from bulk breast cancer patients included in The Cancer Genome
+Atlas (TCGA) database</strong>.</p>
+<p>A set of prognostic biomarkers is then derived from selected genes,
+and subsequently validated via <strong>functional enrichment
+analysis</strong>.</p>
+<p><strong>A prognostic risk score index</strong> based on the
+identified biomarkers is proposed and validated by exploring the
+patients’ survival.</p>
 <div id="citation" class="section level2">
 <h2>Citation</h2>
 <p>Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria.
-<strong>“Weibull Mixture Cure Frailty Model with High-dimensional
+<strong>“A Weibull Mixture Cure Frailty Model for High-dimensional
 Covariates”</strong></p>
 </div>
 <div id="data" class="section level2">
 <h2>Data</h2>
-<p>??</p>
 </div>
 <div id="r" class="section level2">
 <h2>R</h2>
-<p><code>functions.R</code></p>
+<p><code>functions.R</code> includes the related functions in the
+algorithms.</p>
+<p><code>plots_sim.R</code> draw the figures based on the simulation
+results. Results can be loaded as data framed from
+<em>df_bp_R1.RData</em>, <em>df_betap_R1.RData</em> and
+<em>df.penCox.1se.train.Cstat.RData</em>.</p>
 </div>
 <div id="supplementary-material" class="section level2">
 <h2>Supplementary Material</h2>
-<p>We present the a</p>
+<p>We present all the files in the Supplementary Material.</p>
 </div>
-<div id="tcga-brca-application-results" class="section level2">
-<h2>TCGA-BRCA Application Results</h2>
-<p>All selected genes and complete results of GO and KEGG enrichment
-analyses are provided in excel files.</p>
+<div id="tcga-brca-application" class="section level2">
+<h2>TCGA-BRCA Application</h2>
+<p><strong>Results</strong> includes all the selected genes and complete
+results of GO and KEGG enrichment analyses as in excel files.</p>
+<p><strong>Figures</strong> includes all the figures for the application
+part of the study.</p>
+<p><strong>Data</strong> includes genes of prior knowledge of BRCA from
+<a href="https://github.com/zpliulab/CoxReg">CoxReg study of Li and Liu
+(2021)</a>.</p>
 </div>
 </div>
 
