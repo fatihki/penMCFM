@@ -2,513 +2,11 @@
 # Functions in the algorithms
 #
 # author: Fatih Kızılaslan (fatih.kizilaslan@medisin.uio.no)
-# date: 05-January-2024
+# date: 15-January-2024
 #================================================================================================================
 
 library(glmnet)
 library(lbfgs)
-
-# Cross-validation for the EM algorithm
-
-EM_High_Cure_Adaptive_Enet_CV_fit <- function(X_u, X_p, Z_u, Z_p, Time, Delta, alpha_enet, nIter, n_lambda, grid_size, tol, n_folds){
-  
-  # lambda_list1 = lambda.path.enet(X_u = scale.dummy.matrix(X_u), X_p=scale.dummy.matrix(X_p), Z_u = scale.dummy.matrix(Z_u), Z_p = scale(Z_p), Time = Time, Delta = Delta, alpha_enet = alpha_enet, nlambda = n_lambda)
-  # print(lambda_list1)
-  
-  lambda_list2 = lambda.path.glmnet.cox(Xu = scale.dummy.matrix(X_u), Xp=scale.dummy.matrix(X_p), Time = Time, Delta = Delta, nlambda=n_lambda, alpha_enet = alpha_enet)
-  #print(lambda_list2)
-  lambda_list1 = lambda_list2
-
-  set.seed(data.seed)
-  ## validation data: %20 of the data
-  validation_i = sample(length(Time), size = length(Time)/5) 
-  validation_Delta = Delta[validation_i]
-  validation_Time = Time[validation_i]
-  validation_X_u = scale.dummy.matrix(X_u[validation_i,])
-  validation_X_p = scale.dummy.matrix(X_p[validation_i,])
-  validation_Z_u = scale.dummy.matrix(Z_u[validation_i,]) 
-  validation_Z_p = scale.dummy.matrix(Z_p[validation_i,]) 
-  
-  ## removing validation data from the whole data 
-  X_u_CV = X_u[-validation_i,]
-  X_p_CV = X_p[-validation_i,]
-  Z_u_CV = Z_u[-validation_i,]
-  Z_p_CV = Z_p[-validation_i,]
-  Time_CV = Time[-validation_i]
-  Delta_CV = Delta[-validation_i]
-  
-  ## create folds for CV based on  X_u_CV, Z_u_CV,... , Delta_CV 
-  set.seed(data.seed)  
-  folds_i = sample(rep(1:n_folds, length.out = length(Time_CV)))
-  
-  train_out =  matrix(list(NA), nrow = grid_size, ncol = n_folds )
-  C_matrix = aic = bic = Obs_Loglik = iteration = non.zeros.bp =  non.zeros.betap = theta = lambda.update = matrix( NA, nrow = grid_size, ncol = n_folds  )
-  
-  for (k in 1:n_folds ) {
-    
-    ## test data for kth fold
-    test_i = which(folds_i == k)
-    test_Delta = Delta_CV[test_i]
-    test_Time = Time_CV[test_i]
-    test_X_u = scale.dummy.matrix(X_u_CV[test_i,])
-    test_X_p = scale.dummy.matrix(X_p_CV[test_i,]) 
-    test_Z_u = scale.dummy.matrix(Z_u_CV[test_i,])
-    test_Z_p = scale.dummy.matrix(Z_p_CV[test_i,]) 
-    
-    for (j in 1:grid_size) {
-      
-      adaptive.initial = EM_frailty_High_Cure_Adaptive_Enet_Initial(X_u=scale.dummy.matrix(X_u_CV[-test_i,]), X_p=scale.dummy.matrix(X_p_CV[-test_i,]),  Z_u=scale.dummy.matrix(Z_u_CV[-test_i,]), Z_p=scale.dummy.matrix(Z_p_CV[-test_i,]),
-                                                                    Time=Time_CV[-test_i], Delta=Delta_CV[-test_i], alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[j], lambda_enet2 = lambda_list2[j],
-                                                                    multi_step_size = 3) 
-      
-      train_out[[j,k]] = try ( EM_frailty_High_Cure_Adaptive_Enet(X_u=scale.dummy.matrix(X_u_CV[-test_i,]), X_p=scale.dummy.matrix(X_p_CV[-test_i,]),  Z_u=scale.dummy.matrix(Z_u_CV[-test_i,]), Z_p=scale.dummy.matrix(Z_p_CV[-test_i,]),
-                                                                  Time=Time_CV[-test_i], Delta=Delta_CV[-test_i],
-                                                                  b0 = adaptive.initial$b0 , b_u = adaptive.initial$b_u, b_p = adaptive.initial$b_p , beta_u = adaptive.initial$beta_u, beta_p = adaptive.initial$beta_p,
-                                                                  alpha = adaptive.initial$alpha, gammaa = adaptive.initial$gammaa, theta = adaptive.initial$theta, 
-                                                                  bp_weights = adaptive.initial$bp_weights, betap_weights = adaptive.initial$betap_weights,
-                                                                  bT_p = adaptive.initial$bT_p, betaT_p = adaptive.initial$betaT_p, 
-                                                                  alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[j], lambda_enet2 = lambda_list2[j],
-                                                                  nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10 )  )
-      lambda.update[j,k] = 0
-      
-      if (class( train_out[[j,k]] ) == "try-error") {
-        adaptive.initial = EM_frailty_High_Cure_Adaptive_Enet_Initial(X_u=scale.dummy.matrix(X_u_CV[-test_i,]), X_p=scale.dummy.matrix(X_p_CV[-test_i,]),  Z_u=scale.dummy.matrix(Z_u_CV[-test_i,]), Z_p=scale(Z_p_CV[-test_i,]),
-                                                                      Time=Time_CV[-test_i], Delta=Delta_CV[-test_i], alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[j]-2e-04, lambda_enet2 = lambda_list2[j]-2e-04,
-                                                                      multi_step_size = 3) 
-        train_out[[j,k]] = try ( EM_frailty_High_Cure_Adaptive_Enet(X_u=scale.dummy.matrix(X_u_CV[-test_i,]), X_p=scale.dummy.matrix(X_p_CV[-test_i,]),  Z_u=scale.dummy.matrix(Z_u_CV[-test_i,]), Z_p=scale(Z_p_CV[-test_i,]),
-                                                                    Time=Time_CV[-test_i], Delta=Delta_CV[-test_i],
-                                                                    b0 = adaptive.initial$b0 , b_u = adaptive.initial$b_u, b_p = adaptive.initial$b_p , beta_u = adaptive.initial$beta_u, beta_p = adaptive.initial$beta_p,
-                                                                    alpha = adaptive.initial$alpha, gammaa = adaptive.initial$gammaa, theta = adaptive.initial$theta, 
-                                                                    bp_weights = adaptive.initial$bp_weights, betap_weights = adaptive.initial$betap_weights,
-                                                                    bT_p = adaptive.initial$bT_p, betaT_p = adaptive.initial$betaT_p, 
-                                                                    alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[j]-2e-04, lambda_enet2 = lambda_list2[j]-2e-04,
-                                                                    nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  )  )
-        if ( class( train_out[[j,k]] ) != "try-error") lambda.update[j,k] = 1
-      }
-      
-      if (class( train_out[[j,k]] ) == "try-error") {
-        adaptive.initial = EM_frailty_High_Cure_Adaptive_Enet_Initial(X_u=scale.dummy.matrix(X_u_CV[-test_i,]), X_p=scale.dummy.matrix(X_p_CV[-test_i,]),  Z_u=scale.dummy.matrix(Z_u_CV[-test_i,]), Z_p=scale(Z_p_CV[-test_i,]),
-                                                                      Time=Time_CV[-test_i], Delta=Delta_CV[-test_i], alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[j]+2e-04, lambda_enet2 = lambda_list2[j]+2e-04,
-                                                                      multi_step_size = 3) 
-        train_out[[j,k]] = try ( EM_frailty_High_Cure_Adaptive_Enet(X_u=scale.dummy.matrix(X_u_CV[-test_i,]), X_p=scale.dummy.matrix(X_p_CV[-test_i,]),  Z_u=scale.dummy.matrix(Z_u_CV[-test_i,]), Z_p=scale(Z_p_CV[-test_i,]),
-                                                                    Time=Time_CV[-test_i], Delta=Delta_CV[-test_i],
-                                                                    b0 = adaptive.initial$b0 , b_u = adaptive.initial$b_u, b_p = adaptive.initial$b_p , beta_u = adaptive.initial$beta_u, beta_p = adaptive.initial$beta_p,
-                                                                    alpha = adaptive.initial$alpha, gammaa = adaptive.initial$gammaa, theta = adaptive.initial$theta, 
-                                                                    bp_weights = adaptive.initial$bp_weights, betap_weights = adaptive.initial$betap_weights,
-                                                                    bT_p = adaptive.initial$bT_p, betaT_p = adaptive.initial$betaT_p, 
-                                                                    alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[j]+2e-04, lambda_enet2 = lambda_list2[j]+2e-04,
-                                                                    nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  )  )
-        if ( class( train_out[[j,k]] ) != "try-error") lambda.update[j,k] = 1
-      }
-      
-      if (class( train_out[[j,k]] ) == "try-error") {
-        if ( class( train_out[[j,k]] ) != "try-error") lambda.update[j,k] = -1
-        next
-      }
-      
-      ## calculate the C-stat, AIC, BIC based on the test data using the estimates from train data
-      C_matrix[j,k] = C.stat( cure_cutoff = 5, b0_hat=train_out[[j,k]]$b0, b_u_hat=train_out[[j,k]]$b_u, b_p_hat=train_out[[j,k]]$b_p, beta_u_hat=train_out[[j,k]]$beta_u, beta_p_hat=train_out[[j,k]]$beta_p,
-                              X_u=test_X_u, X_p=test_X_p, Z_u=test_Z_u, Z_p=test_Z_p, testing_time=test_Time, testing_delta=test_Delta )
-      
-      Obs_Loglik[j,k] = -observed_LogLik_survival_data(par=train_out[[j,k]]$theta, b0=train_out[[j,k]]$b0, b_u=train_out[[j,k]]$b_u, b_p=train_out[[j,k]]$b_p, beta_u=train_out[[j,k]]$beta_u, beta_p=train_out[[j,k]]$beta_p, 
-                                                       alpha=train_out[[j,k]]$alpha, gammaa=train_out[[j,k]]$gammaa, X_u=test_X_u, X_p=test_X_p, Z_u=test_Z_u, Z_p=test_Z_p,
-                                                       Time=test_Time, Delta=test_Delta) #based on the test data using train estimates
-      aic[j,k] = -2*Obs_Loglik[j,k] + 2*(train_out[[j,k]]$nonzero_bp + train_out[[j,k]]$nonzero_betap)
-      bic[j,k] = -2*Obs_Loglik[j,k] + ( log(length(test_Time))* ( train_out[[j,k]]$nonzero_bp + train_out[[j,k]]$nonzero_betap ) )
-      theta[j,k] = train_out[[j,k]]$theta
-      iteration[j,k] = train_out[[j,k]]$iteration
-      non.zeros.bp[j,k] = train_out[[j,k]]$nonzero_bp
-      non.zeros.betap[j,k] = train_out[[j,k]]$nonzero_betap
-      cat("completed step:", c(j,k),"\n")
-      
-    } 
-    
-    cat("Fold", k, "training finished\n")
-    
-  } 
-  
-  ## lambda selection based on C-stat criteria
-  C_matrix.na.omit = na.omit(C_matrix)
-  model_select_Cstat = which.max( rowMeans(C_matrix.na.omit, na.rm = T) ) 
-  cat("Selected lambda using C_stat:", round( c(lambda_list1[model_select_Cstat],lambda_list2[model_select_Cstat]), 5),"\n" )  
-  
-  ## lambda selection based on AIC criteria
-  aic.na.omit = na.omit(aic)
-  model_select_aic = which.min( rowMeans(aic.na.omit, na.rm = T) ) 
-  cat("Selected lambda using AIC:", round( c(lambda_list1[model_select_aic],lambda_list2[model_select_aic]), 5),"\n" )
-  
-  ## lambda selection based on BIC criteria
-  bic.na.omit = na.omit(bic)
-  model_select_bic = which.min( rowMeans(bic.na.omit, na.rm = T) ) 
-  cat("Selected lambda using BIC:", round( c(lambda_list1[model_select_bic],lambda_list2[model_select_bic]), 5),"\n" )
-  
-  Av.logLik =  rowMeans( Obs_Loglik, na.rm = T) 
-  
-  ## Results based on the "train data + test data = all_data - validation_data" for the selected tuning parameter
-  
-  
-  ## for selected "lambda_Cstat"
-  
-  adaptive.initial.Cstat = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                       Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                       alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_Cstat], lambda_enet2 = lambda_list2[model_select_Cstat], multi_step_size = 3) 
-  
-  output.Cstat = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                          Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                          b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                          beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                          alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                          bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                          bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                          alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_Cstat], lambda_enet2 = lambda_list2[model_select_Cstat],
-                                                          nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-  
-  if (class( output.Cstat ) == "try-error") {
-    
-    adaptive.initial.Cstat = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                         Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                         alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_Cstat]-2e-04, lambda_enet2 = lambda_list2[model_select_Cstat]-2e-04, multi_step_size = 3) 
-    
-    output.Cstat = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                            Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                            b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                            beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                            alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                            bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                            bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                            alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_Cstat]-2e-04, lambda_enet2 = lambda_list2[model_select_Cstat]-2e-04,
-                                                            nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-    
-  }
-  
-  if (class( output.Cstat ) == "try-error") {
-    
-    adaptive.initial.Cstat = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                         Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                         alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_Cstat]+2e-04, lambda_enet2 = lambda_list2[model_select_Cstat]+2e-04, multi_step_size = 3) 
-    
-    output.Cstat = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                            Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                            b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                            beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                            alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                            bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                            bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                            alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_Cstat]+2e-04, lambda_enet2 = lambda_list2[model_select_Cstat]+2e-04,
-                                                            nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-    
-  }
-  
-  ## tuning alpha parameter based on the validation data
-  
-  Cstat_model_select_Cstat = C.stat( cure_cutoff = 5, b0_hat=output.Cstat$b0, b_u_hat=output.Cstat$b_u, b_p_hat=output.Cstat$b_p, beta_u_hat=output.Cstat$beta_u, beta_p_hat=output.Cstat$beta_p,
-                                     X_u=scale.dummy.matrix(validation_X_u), X_p=scale.dummy.matrix(validation_X_p), Z_u=scale.dummy.matrix(validation_Z_u), Z_p=scale.dummy.matrix(validation_Z_p),
-                                     testing_time=validation_Time, testing_delta=validation_Delta ) 
-  
-  Obs_Loglik_validation_model_select_Cstat = -observed_LogLik_survival_data(par=output.Cstat$theta, b0=output.Cstat$b0, b_u=output.Cstat$b_u, b_p=output.Cstat$b_p, beta_u=output.Cstat$beta_u, beta_p=output.Cstat$beta_p, 
-                                                                            alpha=output.Cstat$alpha, gammaa=output.Cstat$gammaa, X_u=scale.dummy.matrix(validation_X_u), X_p=scale.dummy.matrix(validation_X_p), 
-                                                                            Z_u=scale.dummy.matrix(validation_Z_u), Z_p=scale.dummy.matrix(validation_Z_p), Time=validation_Time, Delta=validation_Delta)
-  AIC_model_select_Cstat = -2*Obs_Loglik_validation_model_select_Cstat + 2*(output.Cstat$nonzero_bp + output.Cstat$nonzero_betap) 
-  BIC_model_select_Cstat = -2*Obs_Loglik_validation_model_select_Cstat + ( log(length(validation_Time))*(output.Cstat$nonzero_bp + output.Cstat$nonzero_betap) ) 
-  
-  cat( "output.Cstat completed\n")
-  
-  
-  
-  ## for selected "lambda_aic"
-  
-  
-  adaptive.initial.aic = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                     Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                     alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_aic], lambda_enet2 = lambda_list2[model_select_aic], multi_step_size = 3) 
-  
-  output.aic = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                        Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                        b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                        beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                        alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                        bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                        bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                        alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_aic], lambda_enet2 = lambda_list2[model_select_aic],
-                                                        nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-  
-  if (class( output.aic ) == "try-error") {
-    
-    adaptive.initial.aic = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                       Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                       alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_aic]-2e-04, lambda_enet2 = lambda_list2[model_select_aic]-2e-04, multi_step_size = 3) 
-    
-    output.aic = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                          Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                          b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                          beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                          alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                          bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                          bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                          alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_aic]-2e-04, lambda_enet2 = lambda_list2[model_select_aic]-2e-04,
-                                                          nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-    
-  }
-  
-  if (class( output.aic ) == "try-error") {
-    
-    adaptive.initial.aic = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                       Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                       alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_aic]+2e-04, lambda_enet2 = lambda_list2[model_select_aic]+2e-04, multi_step_size = 5) 
-    
-    output.aic = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                          Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                          b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                          beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                          alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                          bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                          bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                          alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_aic]+2e-04, lambda_enet2 = lambda_list2[model_select_aic]+2e-04,
-                                                          nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )    
-    
-  }
-  
-  ## tuning alpha parameter based on the validation data
-  
-  Cstat_model_select_aic = C.stat( cure_cutoff = 5, b0_hat=output.aic$b0, b_u_hat=output.aic$b_u, b_p_hat=output.aic$b_p, beta_u_hat=output.aic$beta_u, beta_p_hat=output.aic$beta_p,
-                                   X_u=scale.dummy.matrix(validation_X_u), X_p=scale.dummy.matrix(validation_X_p), Z_u=scale.dummy.matrix(validation_Z_u), Z_p=scale(validation_Z_p), 
-                                   testing_time=validation_Time, testing_delta=validation_Delta ) 
-  
-  Obs_Loglik_validation_model_select_aic = -observed_LogLik_survival_data(par=output.aic$theta, b0=output.aic$b0, b_u=output.aic$b_u, b_p=output.aic$b_p, beta_u=output.aic$beta_u, beta_p=output.aic$beta_p, 
-                                                                          alpha=output.aic$alpha, gammaa=output.aic$gammaa, X_u=scale.dummy.matrix(validation_X_u), X_p=scale.dummy.matrix(validation_X_p),
-                                                                          Z_u=scale.dummy.matrix(validation_Z_u),Z_p=scale.dummy.matrix(validation_Z_p), Time=validation_Time, Delta=validation_Delta)
-  AIC_model_select_aic = -2*Obs_Loglik_validation_model_select_aic + 2*(output.aic$nonzero_bp + output.aic$nonzero_betap)  
-  BIC_model_select_aic = -2*Obs_Loglik_validation_model_select_aic + ( log(length(validation_Time))*(output.aic$nonzero_bp+output.aic$nonzero_betap) )  
-  
-  cat( "output.aic completed\n")
-  
-  ## for selected "lambda_bic"
-  
-  
-  adaptive.initial.bic = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                     Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                     alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_bic], lambda_enet2 = lambda_list2[model_select_bic], multi_step_size = 3) 
-  
-  output.bic = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                        Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                        b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                        beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                        alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                        bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                        bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                        alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_bic], lambda_enet2 = lambda_list2[model_select_bic],
-                                                        nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-  
-  if (class( output.bic ) == "try-error") {
-    
-    adaptive.initial.bic = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                       Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                       alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_bic]-2e-04, lambda_enet2 = lambda_list2[model_select_bic]-2e-04, multi_step_size = 3) 
-    
-    output.bic = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                          Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                          b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                          beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                          alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                          bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                          bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                          alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_bic]-2e-04, lambda_enet2 = lambda_list2[model_select_bic]-2e-04,
-                                                          nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-  }
-  
-  if (class( output.bic ) == "try-error") {
-    
-    adaptive.initial.bic = EM_frailty_High_Cure_Adaptive_Enet_Initial( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]),  Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                                       Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                                       alpha_enet = alpha_enet , lambda_enet1 = lambda_list1[model_select_bic]+2e-04, lambda_enet2 = lambda_list2[model_select_bic]+2e-04, multi_step_size = 3) 
-    
-    output.bic = try( EM_frailty_High_Cure_Adaptive_Enet( X_u=scale.dummy.matrix(X_u[-validation_i,]),  X_p=scale.dummy.matrix(X_p[-validation_i,]), Z_u=scale.dummy.matrix(Z_u[-validation_i,]), Z_p=scale.dummy.matrix(Z_p[-validation_i,]),
-                                                          Time=Time[-validation_i], Delta=Delta[-validation_i],
-                                                          b0 = adaptive.initial.Cstat$b0 , b_u = adaptive.initial.Cstat$b_u, b_p = adaptive.initial.Cstat$b_p , 
-                                                          beta_u = adaptive.initial.Cstat$beta_u, beta_p = adaptive.initial.Cstat$beta_p,
-                                                          alpha = adaptive.initial.Cstat$alpha, gammaa = adaptive.initial.Cstat$gammaa, theta = adaptive.initial.Cstat$theta, 
-                                                          bp_weights = adaptive.initial.Cstat$bp_weights, betap_weights = adaptive.initial.Cstat$betap_weights,
-                                                          bT_p = adaptive.initial.Cstat$bT_p, betaT_p = adaptive.initial.Cstat$betaT_p,
-                                                          alpha_enet = alpha_enet, lambda_enet1 = lambda_list1[model_select_bic]+2e-04, lambda_enet2 = lambda_list2[model_select_bic]+2e-04,
-                                                          nIter = nIter, tol1 = tol, tol2 = tol, tol3 = tol*10  ) )
-  }
-  
-  
-  ## tuning alpha parameter based on the validation data
-  
-  Cstat_model_select_bic = C.stat( cure_cutoff = 5, b0_hat=output.bic$b0, b_u_hat=output.bic$b_u, b_p_hat=output.bic$b_p, beta_u_hat=output.bic$beta_u, beta_p_hat=output.bic$beta_p,
-                                   X_u=scale.dummy.matrix(validation_X_u), X_p=scale.dummy.matrix(validation_X_p), Z_u=scale.dummy.matrix(validation_Z_u), Z_p=scale.dummy.matrix(validation_Z_p), 
-                                   testing_time=validation_Time, testing_delta=validation_Delta)
-  
-  Obs_Loglik_validation_model_select_bic = -observed_LogLik_survival_data(par=output.bic$theta, b0=output.bic$b0, b_u=output.bic$b_u, b_p=output.bic$b_p, beta_u=output.bic$beta_u, beta_p=output.bic$beta_p, 
-                                                                          alpha=output.bic$alpha, gammaa=output.bic$gammaa, X_u=scale.dummy.matrix(validation_X_u), X_p=scale.dummy.matrix(validation_X_p),
-                                                                          Z_u=scale.dummy.matrix(validation_Z_u), Z_p=scale.dummy.matrix(validation_Z_p), Time=validation_Time, Delta=validation_Delta)
-  AIC_model_select_bic = -2*Obs_Loglik_validation_model_select_bic + 2*(output.bic$nonzero_bp + output.bic$nonzero_betap)  
-  
-  BIC_model_select_bic = -2*Obs_Loglik_validation_model_select_bic + ( log(length(validation_Time))*(output.bic$nonzero_bp + output.bic$nonzero_betap) )  
-  
-  cat( "output.bic completed\n")
-  
-  output = list()
-  
-  output[[1]] = cbind(lambda1 = lambda_list1, lambda2 = lambda_list2, aic, Average = rowMeans(aic,na.rm = TRUE) )
-  output[[2]] = output.aic # based on the train data + test data sets 
-  
-  output[[3]] = cbind(lambda1 = lambda_list1, lambda2 = lambda_list2, bic, Average = rowMeans(bic,na.rm = TRUE) )
-  output[[4]] = output.bic #based on the train data + test data sets 
-  
-  output[[5]] = cbind(lambda1 = lambda_list1, lambda2 = lambda_list2, C_matrix, Average = rowMeans(C_matrix,na.rm = TRUE) )
-  output[[6]] = output.Cstat #based on the train data + test data sets 
-  
-  output[[7]] = cbind(lambda_list1, lambda_list2)
-  output[[8]] = lambda.update
-  
-  output[[9]] = c(model_select_aic, model_select_bic, model_select_Cstat)
-  output[[10]] = cbind( AIC_Average = rowMeans(aic,na.rm = TRUE),  BIC_Average = rowMeans(bic,na.rm = TRUE), Cstat_Average = rowMeans(C_matrix,na.rm = TRUE), ObsLogLik_Average = Av.logLik ) #Average AIC, BIC, Cstat for each lambda based on test data from CV
-  
-  # AIC, BIC and C-stat values for the selected lambda based on only VALIDATION DATA
-  
-  output[[11]] = rbind( AIC.validation = c( AIC_model_select_aic, AIC_model_select_bic,  AIC_model_select_Cstat ),
-                        BIC.validation = c( BIC_model_select_aic, BIC_model_select_bic,  BIC_model_select_Cstat ),
-                        C.stat.validation = c( Cstat_model_select_aic, Cstat_model_select_bic, Cstat_model_select_Cstat ) ) 
-  colnames(output[[11]]) =  c("selected AIC model", "selected BIC model", "selected C-stat model") 
-  
-  output[[12]] = non.zeros.bp
-  output[[13]] = non.zeros.betap
-  output[[14]] = Obs_Loglik
-  
-  return(output)
-  
-}
-
-
-# EM algorithm
-
-# X_u, X_p, Z_u, Z_p should be scaled.
-# alpha_enet, lambda_enet1, lambda_enet2:  Elastic-net penalty parameters
-# tol1, tol2, tol3: tolerance values for the complete penalized log-likelihood function partitions
-# alpha, gammaa: Weibull distribution parameters
-# theta: Frailty distribution (Gamma dist.) parameter
-
-EM_frailty_High_Cure_Adaptive_Enet <- function(X_u, X_p, Z_u, Z_p, Time, Delta, b0, b_u, b_p, beta_u, beta_p, alpha, gammaa, theta, bp_weights, betap_weights, bT_p ,betaT_p, alpha_enet, lambda_enet1, lambda_enet2, nIter, tol1, tol2, tol3 ) {
- 
-  N = length(Time)
-  pir = rep(1, N)
-  expNbZ = denominator_part = rep(0,N)
-  llp1_0 = llp2_0 = llp3_0 = 0
-  step = 1
-  llp1 = llp2 =  llp3 =  numeric()
-  conv1 = conv2 =  conv3 = FALSE
-  
-  repeat{
-    
-    ## E-step
-    
-    expNbZ[Delta==0] = exp( -( b0 + Z_u[Delta==0,,drop=FALSE] %*% b_u + Z_p[Delta==0,b_p!=0,drop=FALSE] %*% b_p[b_p!=0]) )
-    denominator_part[Delta==0] = (alpha*(Time[Delta==0]^gammaa)*exp( X_u[Delta==0,,drop=FALSE] %*% beta_u + X_p[Delta==0,beta_p!=0,drop=FALSE] %*% beta_p[beta_p!=0] ) )/theta
-    pir[Delta==0] = 1/( 1+expNbZ[Delta==0]*(1+denominator_part[Delta==0])^theta )
-    
-    denominator_ac = theta + (alpha*(Time^gammaa)*exp( X_u %*% beta_u + X_p %*% beta_p) )
-    c_i = pir*( (Delta+theta)/denominator_ac)
-    a_i = c_i + (1-pir)*( (Delta+theta)/theta )
-    b_i = ( digamma(Delta+theta)-log(pmax(denominator_ac,1e-30)) )*pir + (digamma(Delta+theta)-log(max(theta, 1e-30)) ) * (1-pir)
-    
-    ## update penalized parameters
-    
-    if (!conv1){
-      
-      out_Lc1_penalized = lbfgs(lc1_weighted_elastic_penalized_min, grad_lc1_weighted_elastic_penalized_min, vars = bT_p, par_int = bp_weights,
-                                b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet1,
-                                invisible=1, orthantwise_c = alpha_enet*lambda_enet1,
-                                orthantwise_start = 0,
-                                orthantwise_end = ncol(Z_p) )
-      bT_p = out_Lc1_penalized$par
-      b_p = out_Lc1_penalized$par * bp_weights  ## bp_adapted = bp_weighted*|bp_int| 
-      
-    }
-    
-    if (!conv2){
-      
-      out_Lc2_penalized = lbfgs(lc2_weighted_elastic_penalized_min, grad_lc2_weighted_elastic_penalized_min, vars = betaT_p, par_int = betap_weights,
-                                alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet2,
-                                Time=Time, Delta=Delta,
-                                invisible=1, orthantwise_c = alpha_enet*lambda_enet2,
-                                orthantwise_start = 0,
-                                orthantwise_end = ncol(X_p) )
-      betaT_p = out_Lc2_penalized$par
-      beta_p = out_Lc2_penalized$par * betap_weights
-      
-    }
-    
-    ## update nonpenalized parameters
-    
-    if (!conv1){
-      
-      out_Lc1_unpenalized = lbfgs(lc1_weighted_elastic_unpenalized_min, grad_weighted_lc1_elastic_unpenalized_min, vars = c(b0,b_u), par_int = bp_weights,
-                                  bT_p = bT_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha_enet=alpha_enet, lambda_enet1=lambda_enet1,
-                                  invisible = 1, orthantwise_c = 0 )
-      b0 = out_Lc1_unpenalized$par[1]
-      b_u = out_Lc1_unpenalized$par[2:(ncol(Z_u)+1)]
-      llp1_1 = -out_Lc1_unpenalized$value  ## the enet log-likelihood function value based on the updated b_p estimates and new findig estimates b0,b_u
-      
-    }
-    
-    llp1 = c(llp1, llp1_1)
-    
-    if (!conv2){
-      
-      out_Lc2_unpenalized = lbfgs(lc2_weighted_elastic_unpenalized_min, grad_lc2_weighted_elastic_unpenalized_min, vars = c(log(alpha),log(gammaa),beta_u), par_int = betap_weights,
-                                  betaT_p = betaT_p, X_u=X_u, X_p = X_p, c_i = c_i, alpha_enet=alpha_enet, lambda_enet2=lambda_enet2,
-                                  Time=Time, Delta=Delta,
-                                  invisible = 1, orthantwise_c = 0 )
-      alpha = exp( out_Lc2_unpenalized$par[1] )
-      gammaa = exp( out_Lc2_unpenalized$par[2] )
-      beta_u = out_Lc2_unpenalized$par[-(1:2)]
-      llp2_1 = -out_Lc2_unpenalized$value
-      
-    }
-    
-    llp2 = c(llp2, llp2_1)
-    
-    if (!conv3){
-      
-      out_Lc3 = lbfgs(lc_3, grad_lc_3, vars= theta, Delta=Delta, a_i=a_i, b_i=b_i, invisible = 1, orthantwise_c = 0 )
-      theta_new = out_Lc3$par
-      llp3_1 = -out_Lc3$value
-      
-    }
-    
-    llp3 = c(llp3, llp3_1)
-    theta_old = theta
-    theta = theta_new
-    
-    
-    if (!conv1 & abs(llp1_1- llp1_0)< tol1) conv1 <- TRUE
-    if (!conv2 & abs(llp2_1- llp2_0)< tol2) conv2 <- TRUE
-    if (!conv3 & (  (abs( (theta_new-theta_old)/ ((theta_old)+1) )< 0.01) | (abs(llp3_1-llp3_0)< 0.01) ) ) conv3 <- TRUE
-    if (step > 1 & (conv1 & conv2 & conv3) | step >= nIter) {
-      break
-    }
-    
-    llp1_0 = llp1_1
-    llp2_0 = llp2_1
-    llp3_0 = llp3_1
-    
-    step = 1 + step
-    
-  }  
-  
-  # print(c(lambda_enet1, lambda_enet2, theta_new, theta_old, step,  out_Lc3$convergence ))
-  # print(c( sum(b_p!=0), sum(b_p!=0 & bp_true!=0) ) )  
-  # print(c( sum(beta_p!=0), sum(beta_p!=0 & betap_true!=0) ) )
-  
-  ## output
-  
-  return( list(b_p = b_p, b_u = b_u, b0 = b0,
-               beta_u = beta_u, beta_p= beta_p, alpha = alpha, gammaa = gammaa, theta = theta,
-               logLik_Lc1 = llp1[(step-2):step], logLik_Lc2 = llp2[(step-2):step], logLik_Lc3 = llp3[(step-2):step], bp_weights = bp_weights, betap_weights = betap_weights,
-               iteration = step,  nonzero_bp = sum(b_p!=0),  nonzero_betap = sum(beta_p!=0) ) )
-}
 
 
 # scaling of the data matrix which includes some dummy variables 
@@ -544,5 +42,472 @@ lambda.path.glmnet.cox <- function(Xu, Xp, Time, Delta, nlambda, alpha_enet){
   lambdapath = coxfit$lambda
   return(lambdapath)
 }
+
+# Likelihood functions in the EM algorithm
+
+# negative of the observed log-likelihood function based on the right censoring data
+observed_LogLik_survival_data <- function( par, b0, b_u, b_p, beta_u, beta_p, alpha, gammaa, X_u, X_p, Z_u, Z_p, Time, Delta){
+  theta = par
+  n = nrow(X_u)
+  bZ = b0 + Z_u %*% b_u + Z_p %*% b_p 
+  betaX = X_u %*% beta_u + X_p %*% beta_p 
+  uncure.rate = exp(bZ)/(1+exp(bZ))   
+  
+  term.fr = 1+ ( (alpha*(Time^gammaa)*exp(betaX)) /theta )
+  f.uncured = alpha*gammaa*(Time^(gammaa-1))*exp(betaX)* (term.fr^(-theta-1))
+  F.uncured = 1- ( term.fr^(-theta) )
+  S.pop = 1-(uncure.rate*F.uncured)
+  f.pop = uncure.rate*f.uncured
+  loglik = Delta* log(pmax(f.pop,rep(1e-20,n))) + (1-Delta)*log(pmax(S.pop,rep(1e-20,n))) 
+  return( (-1)*sum(loglik) )
+}
+
+# Weighted likelihood functions for the penalized parameters b_p and beta_p version of the cost function for the adaptive elastic-net penalty
+# Note: weight=1/par_int where par_int = the elastic-net estimates in the first step 
+lc1_weighted_elastic_penalized_min <- function(par, par_int, b0, b_u, Z_u, Z_p, pir, alpha_enet, lambda_enet1) {
+  n = nrow(Z_p)
+  n_z = ncol(Z_p)
+  bT_p = par # b_tilda
+  bp_nonzero = which(bT_p!=0)
+  Zp_new = matrix(NA, nrow=n, ncol=n_z)
+  for (i in 1:n_z) { Zp_new[,i] = Z_p[,i]*par_int[i]  }
+  bZ = b0 + Z_u %*% b_u + Zp_new[,bp_nonzero, drop=FALSE] %*% bT_p[bp_nonzero]
+  ll = (-1/n)* sum( pir*bZ - log(1+exp(expsafe(bZ))) ) + ( 0.5*lambda_enet1*(1-alpha_enet)*sum((bT_p*par_int)^2) )   ## lambda*alpha*sum(abs(bT_p)) is adding in the "lbfgs" function using "orthantwise_c"
+  return(ll)
+}
+
+grad_lc1_weighted_elastic_penalized_min  <- function(par, par_int, b0, b_u, Z_u, Z_p, pir, alpha_enet, lambda_enet1) {
+  n = nrow(Z_p)
+  n_z = ncol(Z_p)
+  bT_p = par
+  bp_nonzero = which(bT_p!=0)
+  Zp_new = matrix(NA, nrow=n, ncol=n_z)
+  for (i in 1:n_z) { Zp_new[,i] = Z_p[,i]*par_int[i]  }
+  bZ = b0 + Z_u %*% b_u + Zp_new[,bp_nonzero, drop=FALSE] %*% bT_p[bp_nonzero]
+  piZ = 1/ (1+exp(expsafe(-bZ)) )
+  grad = (-1/n)*matrix(pir-piZ,1) %*% Zp_new + (lambda_enet1*(1-alpha_enet)*(bT_p*(par_int^2)) )
+  return( grad) }
+
+
+
+lc2_weighted_elastic_penalized_min <- function(par, par_int, alpha, gammaa, beta_u, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta) {
+  n = nrow(X_p)
+  n_x = ncol(X_p)
+  betaT_p = par # beta_p tilda 
+  betap_nonzero = which(betaT_p!=0)
+  Xp_new = matrix(NA, nrow=n, ncol=n_x)
+  for (i in 1:n_x) { Xp_new[,i] = X_p[,i]*par_int[i]  }
+  betaX = X_u %*% beta_u + Xp_new[,betap_nonzero, drop=FALSE] %*% betaT_p[betap_nonzero]
+  ll1 = Delta *( log(alpha) + log(gammaa) + (gammaa-1)*log( pmax(Time,1e-15) ) + betaX )
+  ll2 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  ll = (-1/n)* sum( ll1 - ll2 ) + ( 0.5*lambda_enet2*(1-alpha_enet)*sum((betaT_p*par_int)^2) )   # lambda*alpha*sum(abs(bT_p)) is adding in the "lbfgs" function using "orthantwise_c"
+  return(ll)
+}
+
+grad_lc2_weighted_elastic_penalized_min <- function(par, par_int, alpha, gammaa, beta_u, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta) {
+  n = nrow(X_p)
+  n_x = ncol(X_p)
+  betaT_p = par
+  betap_nonzero = which(betaT_p!=0)
+  Xp_new = matrix(NA, nrow=n, ncol=n_x)
+  for (i in 1:n_x) { Xp_new[,i] = X_p[,i]*par_int[i]  }
+  betaX = X_u %*% beta_u + Xp_new[,betap_nonzero, drop=FALSE] %*% betaT_p[betap_nonzero]
+  t1 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  gr = as.vector(rep(0, length(par)))
+  Gbetaa = (Xp_new*Delta)-(Xp_new*drop(t1))
+  gr = (-1/n)*colSums(Gbetaa) + ( lambda_enet2*(1-alpha_enet)*(betaT_p*(par_int^2)) )
+  return(gr)
+}
+
+# weighted likelihood functions for the unpenalized parameters (b0,b_u)
+lc1_weighted_elastic_unpenalized_min <- function(par, par_int, bT_p, Z_u, Z_p, pir, alpha_enet, lambda_enet1) {
+  n = nrow(Z_p)
+  n_z = ncol(Z_p)
+  b0 = par[1] 
+  b_u = par[2:(ncol(Z_u)+1)]
+  bp_nonzero = which(bT_p!=0)
+  Zp_new = matrix(NA, nrow=n, ncol=n_z)
+  for (i in 1:n_z) { Zp_new[,i] = Z_p[,i]*par_int[i]  }
+  bZ = b0 + Z_u %*% b_u + Zp_new[,bp_nonzero, drop=FALSE] %*% bT_p[bp_nonzero]
+  ll = (-1/n)*sum( pir*bZ - log(1+exp(expsafe(bZ))) ) + ( 0.5*lambda_enet1*(1-alpha_enet)*sum((bT_p*par_int)^2) ) + lambda_enet1*alpha_enet*sum(abs(bT_p))
+  return(ll)
+}
+
+grad_weighted_lc1_elastic_unpenalized_min <- function(par, par_int, bT_p, Z_u , Z_p, pir, alpha_enet, lambda_enet1) {
+  n = nrow(Z_p)
+  n_z = ncol(Z_p)
+  b0 = par[1] 
+  b_u = par[2:(ncol(Z_u)+1)]
+  bp_nonzero = which(bT_p!=0)
+  Zp_new = matrix(NA, nrow=n, ncol=n_z)
+  for (i in 1:n_z) { Zp_new[,i] = Z_p[,i]*par_int[i]  }
+  bZ = b0 + Z_u %*% b_u + Zp_new[,bp_nonzero, drop=FALSE] %*% bT_p[bp_nonzero]
+  piZ = 1/( 1+exp(expsafe(-bZ)) )
+  grad1 = (-1/n)*sum(pir-piZ) ## for b0 
+  grad2 = (-1/n)*matrix(pir-piZ,1) %*% Zp_new ## for b_u
+  return( c(grad1, grad2) )
+}
+
+# for the parameters (log_alpha, log_gamma, beta_u)
+# Note: par = (log_alpha ,log_gamma, beta_u), par_int = betap_weights, betaT_p = beta_p tilda 
+lc2_weighted_elastic_unpenalized_min <- function(par, par_int, betaT_p, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta) {
+  n = nrow(X_u)
+  n_x = ncol(X_p)
+  log_alpha = par[1]
+  log_gammaa = par[2]
+  alpha = exp(log_alpha)
+  gammaa = exp(log_gammaa)
+  beta_u = par[3:(ncol(X_u)+2)]
+  betap_nonzero = which(betaT_p!=0)
+  
+  Xp_new = matrix(NA, nrow=n, ncol=n_x)
+  for (i in 1:n_x) { Xp_new[,i] = X_p[,i]*par_int[i]  }
+  betaX = X_u %*% beta_u + Xp_new[,betap_nonzero, drop=FALSE] %*% betaT_p[betap_nonzero]
+  
+  ll1 = Delta *( log_alpha + log_gammaa + (gammaa-1)*log( pmax(Time,1e-15) ) + betaX )
+  ll2 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  ll = (-1/n)* sum( ll1 - ll2 ) + ( 0.5*lambda_enet2*(1-alpha_enet)*sum((betaT_p*par_int)^2) ) + lambda_enet2*alpha_enet*sum(abs(betaT_p))  
+  return(ll)
+}
+
+grad_lc2_weighted_elastic_unpenalized_min <- function(par, par_int, betaT_p, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta) {
+  n = nrow(X_u)
+  n_x = ncol(X_p)
+  log_alpha = par[1]
+  log_gammaa = par[2]
+  alpha = exp(log_alpha)
+  gammaa = exp(log_gammaa)
+  beta_u = par[3:(ncol(X_u)+2)]
+  betap_nonzero = which(betaT_p!=0)
+  
+  Xp_new = matrix(NA, nrow=n, ncol=n_x)
+  for (i in 1:n_x) { Xp_new[,i] = X_p[,i]*par_int[i]  }
+  betaX = X_u %*% beta_u + Xp_new[,betap_nonzero, drop=FALSE] %*% betaT_p[betap_nonzero]
+  
+  t1 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  grad1 = sum(Delta-t1)
+  grad2 = sum( Delta+ (Delta*gammaa*log( pmax(Time,1e-15) )) - ( t1*gammaa*log( pmax(Time,1e-15) ) ) )
+  grad3 = matrix(Delta-t1,1) %*% X_u
+  return( (-1/n)*c(grad1, grad2, grad3) )
+}
+
+lc_3 <- function(par, Delta, a_i, b_i) {
+  n = length(Delta)
+  cnst1 = ( par*log(max(par,1e-15)) )- lgamma(max(par,1e-15))
+  cnst2 = sum((Delta+par-1)*b_i)-sum(a_i*par) 
+  return( (-1/n)*( (n*cnst1)+cnst2 ) )
+}
+
+grad_lc_3 <-function(par, Delta, a_i, b_i) {
+  n = length(Delta)
+  return( (-1/n)*( n*( log(max(par,1e-15))+1-digamma(par) )+ sum(b_i-a_i) ) ) }
+
+
+# negative log-likelihood functions for the adaptive elastic-net case 
+lc1_elastic_penalized_min  <- function( par, b0, b_u, Z_u, Z_p, pir, alpha, lambda ) {
+  n = nrow(Z_p)
+  n_z = ncol(Z_p)
+  b_p = par
+  bp_nonzero = which(b_p!=0)
+  bZ = b0 + Z_u %*% b_u + Z_p[,bp_nonzero, drop=FALSE] %*% b_p[bp_nonzero]
+  ll = (-1/n)* sum(pir*bZ - log(1+exp(bZ))) + ( 0.5*lambda*(1-alpha)*sum(b_p^2) )   # lambda*alpha*sum(abs(b_p)) is adding in the "lbfgs" function using "orthantwise_c = alpha_enet*lambda_enet"
+  return(ll)
+}
+
+grad_lc1_elastic_penalized_min  <- function( par, b0, b_u, Z_u, Z_p, pir, alpha, lambda ) {
+  n = nrow(Z_p)
+  n_z = ncol(Z_p)
+  b_p = par
+  bp_nonzero = which(b_p!=0)
+  bZ = b0 + Z_u %*% b_u + Z_p[,bp_nonzero, drop=FALSE] %*% b_p[bp_nonzero]
+  piZ = 1/(1+exp(-bZ))
+  grad = (-1/n)*matrix(pir-piZ,1) %*% Z_p + (lambda*(1-alpha)*b_p)
+  return( grad) }
+
+
+lc1_elastic_unpenalized_min <- function( par, b_p, Z_u, Z_p, pir, alpha, lambda ) {
+  b0 = par[1] 
+  b_u = par[2:(ncol(Z_u)+1)]
+  n = nrow(Z_p)
+  bp_nonzero = which(b_p!=0)
+  bZ = b0 + Z_u %*% b_u + Z_p[,bp_nonzero, drop=FALSE] %*% b_p[bp_nonzero]
+  ll = (-1/n)*sum( pir*bZ - log(1+exp(bZ)) ) + (0.5*lambda*(1-alpha)*sum(b_p^2)) + lambda*alpha*sum(abs(b_p))
+  return(ll)
+}
+
+grad_lc1_elastic_unpenalized_min <- function( par, b_p, Z_u , Z_p, pir, alpha, lambda ) {
+  b0 = par[1] 
+  b_u = par[2:(ncol(Z_u)+1)]
+  n = nrow(Z_p)
+  bp_nonzero = which(b_p!=0)
+  bZ = b0 + Z_u %*% b_u + Z_p[,bp_nonzero, drop=FALSE] %*% b_p[bp_nonzero]
+  piZ = 1/(1+exp(-bZ))
+  grad1 = (-1/n)*sum(pir-piZ) # for b0 
+  grad2 = (-1/n)*matrix(pir-piZ,1) %*% Z_u # for b_u
+  return( c(grad1, grad2) )
+}
+
+
+lc2_elastic_penalized_min <- function( par, alpha, gammaa, beta_u, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta ) {
+  n = nrow(X_p)
+  n_x = ncol(X_p)
+  beta_p = par
+  betap_nonzero = which(beta_p!=0)
+  betaX = X_u %*% beta_u + X_p[,betap_nonzero, drop=FALSE] %*% beta_p[betap_nonzero]
+  ll1 = Delta *( log(alpha) + log(gammaa) + (gammaa-1)*log( pmax(Time,1e-15) ) + betaX )
+  ll2 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  ll = (-1/n)* sum( ll1 - ll2 ) + ( 0.5*lambda_enet2*(1-alpha_enet)*sum(beta_p^2) )   ## lambda*alpha*sum(abs(b_p)) is adding in the "lbfgs" function using "orthantwise_c"
+  return(ll)
+}
+
+grad_lc2_elastic_penalized_min <- function( par, alpha, gammaa, beta_u, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta ) {
+  n = nrow(X_p)
+  n_x = ncol(X_p)
+  beta_p = par
+  betap_nonzero = which(beta_p!=0)
+  betaX = X_u %*% beta_u + X_p[,betap_nonzero, drop=FALSE] %*% beta_p[betap_nonzero]
+  t1 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  gr = as.vector(rep(0, length(par)))
+  Gbetaa = (X_p*Delta)-(X_p*drop(t1))
+  gr = (-1/n)*colSums(Gbetaa) + ( lambda_enet2*(1-alpha_enet)*beta_p )
+  return(gr)
+}
+
+# Note: par=(log_alpha, log_gamma, beta_u)
+lc2_elastic_unpenalized_min <- function( par, beta_p, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta ) {
+  n = nrow(X_u)
+  log_alpha = par[1]
+  log_gammaa = par[2]
+  alpha = exp(log_alpha)
+  gammaa = exp(log_gammaa)
+  beta_u = par[3:(ncol(X_u)+2)]
+  betap_nonzero = which(beta_p!=0)
+  betaX = X_u %*% beta_u + X_p[,betap_nonzero, drop=FALSE] %*% beta_p[betap_nonzero]
+  ll1 = Delta *( log_alpha + log_gammaa + (gammaa-1)*log( pmax(Time,1e-15) ) + betaX )
+  ll2 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  ll = (-1/n)* sum( ll1 - ll2 ) + ( 0.5*lambda_enet2*(1-alpha_enet)*sum(beta_p^2) ) + lambda_enet2*alpha_enet*sum(abs(beta_p))   
+  return(ll)
+}
+
+grad_lc2_elastic_unpenalized_min <- function(par, beta_p, X_u, X_p, c_i, alpha_enet, lambda_enet2, Time, Delta) {
+  n = nrow(X_u)
+  log_alpha = par[1]
+  log_gammaa = par[2]
+  alpha = exp(log_alpha)
+  gammaa = exp(log_gammaa)
+  beta_u = par[3:(ncol(X_u)+2)]
+  betap_nonzero = which(beta_p!=0)
+  betaX = X_u %*% beta_u + X_p[,betap_nonzero, drop=FALSE] %*% beta_p[betap_nonzero]
+  t1 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  grad1 = sum(Delta-t1)
+  grad2 = sum( Delta+ (Delta*gammaa*log( pmax(Time,1e-15) )) - ( t1*gammaa*log( pmax(Time,1e-15) ) ) )
+  grad3 = matrix(Delta-t1,1) %*% X_u
+  return( (-1/n)*c(grad1, grad2, grad3) )
+}
+
+## The negative log-likelihood functions for the oracle case of EM algorithm
+
+lc1_oracle_min <- function(par, Z_u, Z_p, pir) {
+  b0 = par[1] 
+  b_u = par[2:(ncol(Z_u)+1)]
+  b_p = par[-c(1:(ncol(Z_u)+1))] #!b_p represents non-zero coef. of general b_p!
+  n = nrow(Z_p)
+  bZ = b0 + Z_u %*% b_u + Z_p %*% b_p
+  ll = (-1/n)*sum( pir*bZ - log(1+exp(bZ)) ) 
+  return(ll)
+}
+
+grad_lc1_oracle_min <- function(par, Z_u, Z_p, pir) {
+  b0 = par[1] 
+  b_u = par[2:(ncol(Z_u)+1)]
+  b_p = par[-c(1:(ncol(Z_u)+1))]
+  n = nrow(Z_p)
+  bZ = b0 + Z_u %*% b_u + Z_p %*% b_p
+  piZ = 1/(1+exp(-bZ))
+  grad1 = (-1/n)*sum(pir-piZ) # for b0 
+  grad2 = (-1/n)*matrix(pir-piZ,1) %*% cbind(Z_u,Z_p) # for b_u and b_p
+  return( c(grad1, grad2) )
+}
+
+# Note: par=(log_alpha,log_gamma,beta_u, beta_p) and  
+# "beta_p" represents non-zero coefficients in this function
+lc2_oracle_min <- function(par, X_u, X_p, c_i, Time, Delta) {
+  n = nrow(X_u)
+  log_alpha = par[1]
+  log_gammaa = par[2]
+  alpha = exp(log_alpha)
+  gammaa = exp(log_gammaa)
+  beta_u = par[3:(ncol(X_u)+2)]
+  beta_p = par[-c(1:(ncol(X_u)+2))]
+  betaX = X_u %*% beta_u + X_p %*% beta_p
+  ll1 = Delta *( log_alpha + log_gammaa + (gammaa-1)*log( pmax(Time,1e-15) ) + betaX )
+  ll2 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  ll = (-1/n)* sum( ll1 - ll2 )   
+  return(ll)
+}
+
+grad_lc2_oracle_min <- function(par, X_u, X_p, c_i, Time, Delta) {
+  #!par=(log_alpha,log_gamma,beta_u, beta_p).  !beta_p represents non-zero coef.
+  n = nrow(X_u)
+  log_alpha = par[1]
+  log_gammaa = par[2]
+  alpha = exp(log_alpha)
+  gammaa = exp(log_gammaa)
+  beta_u = par[3:(ncol(X_u)+2)]
+  beta_p = par[-c(1:(ncol(X_u)+2))]
+  betaX = X_u %*% beta_u + X_p %*% beta_p
+  t1 = c_i*alpha*(Time^gammaa)*exp(betaX)
+  grad1 = sum(Delta-t1)
+  grad2 = sum( Delta+ (Delta*gammaa*log( pmax(Time,1e-15) )) - ( t1*gammaa*log( pmax(Time,1e-15) ) ) )
+  grad3 = matrix(Delta-t1,1) %*% X_u
+  return( (-1/n)*c(grad1, grad2, grad3) )
+}
+
+# The following functions "C.stat" and "Cstat_beta" are created by using the similar functions in the Han Fu's github page: https://github.com/hanfu-bios/curemodels/blob/main/evaluation.R 
+# which is related to study Fu et al. (2022).
+
+# The function of the C-statistic for the cure rate
+C.stat <- function(cure_cutoff, b0_hat, b_u_hat, b_p_hat, beta_u_hat, beta_p_hat, X_u, X_p, Z_u, Z_p, testing_time, testing_delta){
+  C_csw_num = 0
+  C_csw_denom = 0
+  testing_n = length(testing_time)
+  v = rep(0, testing_n)
+  y = rep(999, testing_n)
+  y[testing_time>cure_cutoff] = 0
+  y[testing_time<=cure_cutoff & testing_delta==1] = 1
+  v[y<2] = 1
+  if(all(b_p_hat==0)) {
+    p_hat = 1/(1+exp(-b0_hat-Z_u %*% b_u_hat))
+  } else{
+    p_hat = 1/(1+exp(-b0_hat- Z_u %*% b_u_hat - Z_p[,b_p_hat!=0,drop=FALSE] %*% b_p_hat[b_p_hat!=0])) 
+  }
+  temp = v*y + (1-v)*as.vector(p_hat)
+  
+  if(all(beta_p_hat==0)) {
+    X_beta = X_u %*% beta_u_hat 
+  } else{
+    X_beta = X_u %*% beta_u_hat + X_p[,beta_p_hat!=0,drop=FALSE] %*% beta_p_hat[beta_p_hat!=0]
+  }
+  
+  for(i in 1:testing_n)
+    for(j in 1:testing_n){
+      if (j==i | !testing_delta[i] | testing_time[i]>testing_time[j]) next
+      I_ij = testing_time[i]<testing_time[j] | (testing_time[i]==testing_time[j] & !testing_delta[j])
+      if (!I_ij) next
+      if (X_beta[i]>X_beta[j]) C_csw_num = C_csw_num + temp[j]
+      C_csw_denom = C_csw_denom + temp[j]
+    }
+  return(C_csw_num / C_csw_denom)
+}
+
+
+Cstat_beta <- function(beta_u_hat, beta_p_hat, X_u, X_p, time, delta){
+  C_csw_num = 0
+  C_csw_denom = 0
+  n = length(time)
+  if(all(beta_p_hat==0)) {
+    X_beta = X_u %*% beta_u_hat 
+  } else{
+    X_beta = X_u %*% beta_u_hat + X_p[,beta_p_hat!=0,drop=FALSE] %*% beta_p_hat[beta_p_hat!=0] 
+  }
+  for(i in 1:n)
+    for(j in 1:n){
+      if (j==i | !delta[i] | time[i]>time[j]) next
+      I_ij = time[i]<time[j] | (time[i]==time[j] & !delta[j])
+      if (!I_ij) next
+      if (X_beta[i]>X_beta[j]) C_csw_num = C_csw_num + 1
+      C_csw_denom = C_csw_denom + 1
+    }
+  return(C_csw_num / C_csw_denom)
+}
+
+# Functions for the data generation of the Weibull Mixture Cure Frailty Model (MCFM)
+
+# logit function
+logit <- function(mX, vB) {
+  w<- 1/(1+exp(-mX %*% vB))
+  return(w)}
+
+# the uncured rate pi(z)=logit(Z,b) and the cure rate is "1 - pi(z)"
+cure_rate <- function(mZ, vB){
+  return(1-logit (mZ, vB)) }
+
+# data generation from Weibull Mixture Cure Model using with censoring times generated from Exp(rate = censor.rate) 
+# mX and mZ are the covariate matrices
+data_generation_Weibull_mixture_cure_model <- function(alpha, gammaa, b_coef, betaa_coef, mX, mZ, censor.rate){
+  n<-nrow(mX)
+  t_surv<-c()
+  for (i in 1:n) {    
+     u<- runif(1)
+     pi_Z<- logit(mZ[i,],b_coef)
+       if(u<pi_Z) {
+         w1<- log(1-(u/pi_Z))
+         w2<- alpha*exp(mX[i,] %*% betaa_coef)
+         w3<- (-w1/w2)^(1/gammaa)
+         t_surv[i]<-w3  }
+       else{t_surv[i]<- Inf} }
+     t_cens = rexp(n,rate=censor.rate)
+     t_obs = pmin(t_surv,t_cens)
+     censoring = as.numeric(t_surv<= t_cens)
+  return( list( observed_time = t_obs, censoring = censoring, censor.rate = 1-(sum(censoring)/n) ) )
+}
+
+# "covariates_gen.R" functions is created by using the "data.gener.R" function of Han Fu github page https://github.com/hanfu-bios/curemodels/blob/main/data_generation.R
+# Note: n=sample size, p=covariates size, p/nTrue=block size, rho=correlation, sd=standart sapma
+covariates_gen<- function(n, p, nTrue, rho, sd){
+  block_sz = round(p/nTrue) 
+  corr_X_p = matrix(0, p, p)
+  for (i in 1:nTrue) {
+    corr_X_p[(block_sz*(i-1)+1):(block_sz*i),(block_sz*(i-1)+1):(block_sz*i)] = rho^abs(outer(1:block_sz, 1:block_sz, "-")) }
+  Sigma_X_p = sd^2*corr_X_p
+  X_p = mvnfast::rmvn(n, mu=rep(0,p), sigma = Sigma_X_p)
+  return( list( Covariates=X_p, Covariance=Sigma_X_p ) )
+}
+
+# the cumulative distribution function of Weibull distribution in Kizilaslan et al. (2024)
+p_Weibull<- function(t, alpha, gammaa) {
+  return(1- exp(-alpha*(t^gammaa) )  ) }
+
+# the quantile function of Weibull distribution
+q_Weibull<- function(p, alpha, gammaa) {
+  return( ( (-1/alpha)*log(1-p) )^ (1/gammaa) ) }
+
+# the random number generation from Weibull distribution
+r_Weibull<- function(n, alpha, gammaa) {
+  w<-c()
+  for (i in 1:n) {
+    u<- runif(1)
+    w[i]<-q_Weibull(u, alpha, gammaa)  }
+  return( w )   }
+
+# random number generation from Weibull mixture cure model based on the covariates X, Z, b, beta coefficients and distribution parameters
+r_Mixture_W<- function(alpha, gammaa, theta, b_coef, betaa_coef, mX, mZ) {
+  n<- nrow(mX)
+  w<- c()
+  
+  for (i in 1:n) {
+    u<- runif(1) 
+    pi_Z<- logit(mZ[i,],b_coef)
+    
+    if(u<pi_Z) {
+       w1<- 1-(u/pi_Z)
+       w2<- (w1^(-1/theta))-1
+       w3<- (theta*w2)/(alpha*exp(mX[i,] %*% betaa_coef))
+       w4<- w3^(1/gammaa)
+       w4<- w3^(1/gammaa)
+       w5<- ifelse(w4<1e-2,1e-2,w4)
+       w[i]<- w5  }
+    else{w[i]<-1e+10} }
+  
+  return(w)  } 
+
+## survival data generation from the Weibull mixture cure model 
+r_Mixture_W_cens <- function(alpha, gammaa,  theta, b_coef, betaa_coef, mX, mZ, censor.rate) {
+  n<- nrow(mX)
+  survival_time <- r_Mixture_W(alpha, gammaa, theta, b_coef, betaa_coef, mX, mZ) # from the Weibull mixture cure model 
+  censor_time <- rexp(n, rate=censor.rate) 
+  observed_time <- pmin(survival_time, censor_time)
+  censor <- as.numeric(survival_time <= censor_time)
+  return( list( observed_time = observed_time, censoring = censor, censor.rate = 1-(sum(censor)/n) ) ) }
 
 

@@ -376,35 +376,48 @@ identified biomarkers is proposed and validated by exploring the
 patients’ survival.</p>
 <div id="citation" class="section level2">
 <h2>Citation</h2>
-<p>Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria.
+<blockquote>
+<p>Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria (2024).
 <strong>“A Weibull Mixture Cure Frailty Model for High-dimensional
-Covariates”</strong></p>
-</div>
-<div id="data" class="section level2">
-<h2>Data</h2>
+Covariates”</strong>. <a href="https://arxiv.org/abs/2401.06575">arXiv</a></p>
+</blockquote>
 </div>
 <div id="r" class="section level2">
 <h2>R</h2>
+<p>It includes all the source code necessary to run the introduced and
+utilized methods in Kızılaslan, Swanson and Vitelli (2024).</p>
+<p><code>EM_penMCFM.R</code> includes EM algorithm codes based on the
+methods employed in the study.</p>
 <p><code>functions.R</code> includes the related functions in the
 algorithms.</p>
 <p><code>plots_sim.R</code> draw the figures based on the simulation
-results. Results can be loaded as data framed from
-<em>df_bp_R1.RData</em>, <em>df_betap_R1.RData</em> and
-<em>df.penCox.1se.train.Cstat.RData</em>.</p>
+results. Results can be loaded from data frames <em>df_bp_R1.RData</em>,
+<em>df_betap_R1.RData</em> and <em>df.penCox.1se.train.Cstat.RData</em>
+in <a href="https://github.com/fatihki/penMCFM/tree/main/Simulation/Data">Simulation&gt;Data</a>.</p>
+<p><code>sim_penMCFM.R</code> is a function designed for running
+simulations for the MCFM, utilizing various methods.</p>
+</div>
+<div id="simulation" class="section level2">
+<h2>Simulation</h2>
+<p><strong>Data</strong> includes data frames obtained from simulation
+results, enabling the generation of plots</p>
+<p><strong>Figures</strong> includes all the plots from the simulation
+section of the study.</p>
 </div>
 <div id="supplementary-material" class="section level2">
 <h2>Supplementary Material</h2>
-<p>We present all the files in the Supplementary Material.</p>
+<p>We present all the files in the Supplementary Materials of the
+study.</p>
 </div>
 <div id="tcga-brca-application" class="section level2">
 <h2>TCGA-BRCA Application</h2>
-<p><strong>Results</strong> includes all the selected genes and complete
-results of GO and KEGG enrichment analyses as in excel files.</p>
-<p><strong>Figures</strong> includes all the figures for the application
-part of the study.</p>
-<p><strong>Data</strong> includes genes of prior knowledge of BRCA from
-<a href="https://github.com/zpliulab/CoxReg">CoxReg study of Li and Liu
+<p><strong>Data</strong> includes prior knowledge of BRCA genes from <a href="https://github.com/zpliulab/CoxReg">CoxReg study of Li and Liu
 (2021)</a>.</p>
+<p><strong>Figures</strong> includes all the plots relevant to the
+application section of the study.</p>
+<p><strong>Results</strong> contains all the selected genes and
+comprehensive results of Gene Ontology (GO) and Kyoto Encyclopedia of
+Genes and Genomes (KEGG) enrichment analyses in excel files.</p>
 </div>
 </div>
 
