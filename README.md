@@ -13,16 +13,20 @@ A set of prognostic biomarkers is then derived from selected genes, and subseque
 
 ## Citation
 
- > Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria (2024). **"A Weibull Mixture Cure Frailty Model for High-dimensional Covariates"**. [arXiv](https://arxiv.org/abs/2401.06575) 
+ > Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria (2024). **"A Weibull Mixture Cure Frailty Model for High-dimensional Covariates"**. arXiv DOI: [10.48550/arXiv.2401.06575](https://arxiv.org/abs/2401.06575) 
 
 
 ## R
 
-It includes all the source code necessary to run the introduced and utilized methods  in Kızılaslan, Swanson and Vitelli (2024).
+It includes all the source code necessary to run the introduced and utilized methods in Kızılaslan, Swanson and Vitelli (2024).
 
 ``EM_penMCFM.R`` includes EM algorithm codes based on the methods employed in the study.
 
 ``functions.R`` includes the related functions in the algorithms.
+
+``GMIFS_MCM.R`` includes the related functions for the GMIFS algorithm for the MCM.
+
+``GMIFS_penCox_penMCFM.R`` includes the related functions for the GMIFS and penCox algorithms for the penMCFM.
 
 ``plots_sim.R`` draw the figures based on the simulation results. Results can be loaded from data frames _df_bp_R1.RData_, _df_betap_R1.RData_ and _df.penCox.1se.train.Cstat.RData_ in [Simulation>Data](https://github.com/fatihki/penMCFM/tree/main/Simulation/Data).
 

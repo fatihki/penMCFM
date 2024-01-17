@@ -147,7 +147,7 @@ EM_frailty_High_Cure_Adaptive_Enet_Initial <- function(X_u, X_p, Z_u, Z_p, Time,
   beta_u = as.numeric( coef(fit) )
   beta_p = rep(0,n_Xp)
   
-  ## Moment estimates of Weibull parameters
+  ## Moment estimates of Weibull distribution parameters
   gammaa = uniroot(function(a) # MOM estimate of gammaa parameter
     log(gamma(1+2/a))-2*log(gamma(1+1/a))-log(var(Time)+(mean(Time))^2)+2*log(mean(Time)),
     c(0.01,10))$root
@@ -321,7 +321,7 @@ EM_High_Cure_Adaptive_Enet_CV_fit <- function(X_u, X_p, Z_u, Z_p, Time, Delta, a
   validation_Z_u = scale.dummy.matrix(Z_u[validation_i,]) 
   validation_Z_p = scale.dummy.matrix(Z_p[validation_i,]) 
   
-  ## removing validation data from the whole data 
+  ## removing the validation data from the whole data 
   X_u_CV = X_u[-validation_i,]
   X_p_CV = X_p[-validation_i,]
   Z_u_CV = Z_u[-validation_i,]

@@ -432,25 +432,6 @@ logit <- function(mX, vB) {
 cure_rate <- function(mZ, vB){
   return(1-logit (mZ, vB)) }
 
-# data generation from Weibull Mixture Cure Model using with censoring times generated from Exp(rate = censor.rate) 
-# mX and mZ are the covariate matrices
-data_generation_Weibull_mixture_cure_model <- function(alpha, gammaa, b_coef, betaa_coef, mX, mZ, censor.rate){
-  n<-nrow(mX)
-  t_surv<-c()
-  for (i in 1:n) {    
-     u<- runif(1)
-     pi_Z<- logit(mZ[i,],b_coef)
-       if(u<pi_Z) {
-         w1<- log(1-(u/pi_Z))
-         w2<- alpha*exp(mX[i,] %*% betaa_coef)
-         w3<- (-w1/w2)^(1/gammaa)
-         t_surv[i]<-w3  }
-       else{t_surv[i]<- Inf} }
-     t_cens = rexp(n,rate=censor.rate)
-     t_obs = pmin(t_surv,t_cens)
-     censoring = as.numeric(t_surv<= t_cens)
-  return( list( observed_time = t_obs, censoring = censoring, censor.rate = 1-(sum(censoring)/n) ) )
-}
 
 # "covariates_gen.R" functions is created by using the "data.gener.R" function of Han Fu github page https://github.com/hanfu-bios/curemodels/blob/main/data_generation.R
 # Note: n=sample size, p=covariates size, p/nTrue=block size, rho=correlation, sd=standart sapma
@@ -464,15 +445,15 @@ covariates_gen<- function(n, p, nTrue, rho, sd){
   return( list( Covariates=X_p, Covariance=Sigma_X_p ) )
 }
 
-# the cumulative distribution function of Weibull distribution in Kizilaslan et al. (2024)
+# the cumulative distribution function of Weibull distribution as in Kizilaslan et al. (2024)
 p_Weibull<- function(t, alpha, gammaa) {
   return(1- exp(-alpha*(t^gammaa) )  ) }
 
-# the quantile function of Weibull distribution
+# the quantile function of Weibull distribution as in Kizilaslan et al. (2024)
 q_Weibull<- function(p, alpha, gammaa) {
   return( ( (-1/alpha)*log(1-p) )^ (1/gammaa) ) }
 
-# the random number generation from Weibull distribution
+# the random number generation from Weibull distribution as in Kizilaslan et al. (2024)
 r_Weibull<- function(n, alpha, gammaa) {
   w<-c()
   for (i in 1:n) {
