@@ -20,11 +20,13 @@ A set of prognostic biomarkers is then derived from selected genes, and subseque
 
 It includes all the source code necessary to run the introduced and utilized methods in Kızılaslan, Swanson and Vitelli (2024).
 
+``application.R`` includes the code for applying the methods to the TCGA-BRCA RNA-seq data.
+
 ``EM_penMCFM.R`` includes EM algorithm codes based on the methods employed in the study.
 
 ``functions.R`` includes the related functions in the algorithms.
 
-``GMIFS_MCM.R`` includes the related functions for the GMIFS algorithm for the MCM.
+``GMIFS_MCM.R`` includes the related functions for the GMIFS algorithm for the MCM based on the Fu et al. (2022).
 
 ``GMIFS_penCox_penMCFM.R`` includes the related functions for the GMIFS and penCox algorithms for the penMCFM.
 
@@ -52,4 +54,11 @@ We present all the files in the Supplementary Materials of the study.
 **Figures** includes all the plots relevant to the application section of the study.
 
 **Results** contains all the selected genes and comprehensive results of Gene Ontology (GO) and Kyoto Encyclopedia of Genes and Genomes (KEGG) enrichment analyses in excel files.
+
+
+## References
+
+ > Fu, H., Nicolet, D., Mrózek, K., Stone, R.M., Eisfeld, A.K., Byrd, J.C., Archer, K.J. (2022). Controlled variable selection in Weibull mixture cure models for high‐dimensional data. Statistics in Medicine, 41 (22), 4340-4366. DOI: [10.1002/sim.9513](https://doi.org/10.1002/sim.9513)
+
+ > Li, L., Liu, ZP. (2021). Detecting prognostic biomarkers of breast cancer by regularized Cox proportional hazards models. Journal of Translational Medicine, 19, 514 (2021). DOI: [10.1186/s12967-021-03180-y](https://doi.org/10.1186/s12967-021-03180-y)
 

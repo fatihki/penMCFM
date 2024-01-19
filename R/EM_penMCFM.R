@@ -44,8 +44,8 @@ EM_frailty_High_Cure_Adaptive_Enet <- function(X_u, X_p, Z_u, Z_p, Time, Delta, 
     if (!conv1){
       
       out_Lc1_penalized = lbfgs(lc1_weighted_elastic_penalized_min, grad_lc1_weighted_elastic_penalized_min, vars = bT_p, par_int = bp_weights,
-                                b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet1,
-                                invisible=1, orthantwise_c = alpha_enet*lambda_enet1,
+                                b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet,
+                                invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                                 orthantwise_start = 0,
                                 orthantwise_end = ncol(Z_p) )
       bT_p = out_Lc1_penalized$par
@@ -56,9 +56,9 @@ EM_frailty_High_Cure_Adaptive_Enet <- function(X_u, X_p, Z_u, Z_p, Time, Delta, 
     if (!conv2){
       
       out_Lc2_penalized = lbfgs(lc2_weighted_elastic_penalized_min, grad_lc2_weighted_elastic_penalized_min, vars = betaT_p, par_int = betap_weights,
-                                alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet2,
+                                alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet,
                                 Time=Time, Delta=Delta,
-                                invisible=1, orthantwise_c = alpha_enet*lambda_enet2,
+                                invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                                 orthantwise_start = 0,
                                 orthantwise_end = ncol(X_p) )
       betaT_p = out_Lc2_penalized$par
@@ -71,7 +71,7 @@ EM_frailty_High_Cure_Adaptive_Enet <- function(X_u, X_p, Z_u, Z_p, Time, Delta, 
     if (!conv1){
       
       out_Lc1_unpenalized = lbfgs(lc1_weighted_elastic_unpenalized_min, grad_weighted_lc1_elastic_unpenalized_min, vars = c(b0,b_u), par_int = bp_weights,
-                                  bT_p = bT_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha_enet=alpha_enet, lambda_enet1=lambda_enet1,
+                                  bT_p = bT_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha_enet=alpha_enet, lambda_enet=lambda_enet,
                                   invisible = 1, orthantwise_c = 0 )
       b0 = out_Lc1_unpenalized$par[1]
       b_u = out_Lc1_unpenalized$par[2:(ncol(Z_u)+1)]
@@ -84,7 +84,7 @@ EM_frailty_High_Cure_Adaptive_Enet <- function(X_u, X_p, Z_u, Z_p, Time, Delta, 
     if (!conv2){
       
       out_Lc2_unpenalized = lbfgs(lc2_weighted_elastic_unpenalized_min, grad_lc2_weighted_elastic_unpenalized_min, vars = c(log(alpha),log(gammaa),beta_u), par_int = betap_weights,
-                                  betaT_p = betaT_p, X_u=X_u, X_p = X_p, c_i = c_i, alpha_enet=alpha_enet, lambda_enet2=lambda_enet2,
+                                  betaT_p = betaT_p, X_u=X_u, X_p = X_p, c_i = c_i, alpha_enet=alpha_enet, lambda_enet=lambda_enet,
                                   Time=Time, Delta=Delta,
                                   invisible = 1, orthantwise_c = 0 )
       alpha = exp( out_Lc2_unpenalized$par[1] )
@@ -169,29 +169,29 @@ EM_frailty_High_Cure_Adaptive_Enet_Initial <- function(X_u, X_p, Z_u, Z_p, Time,
   
   ## optimization of the unpenalized and penalized variables separately based on the first values of (b0,b_u,b_p) = beta_p = 0
   init_Lc1_penalized = lbfgs(lc1_elastic_penalized_min, grad_lc1_elastic_penalized_min, vars = b_p, 
-                             b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet1,
-                             invisible=1, orthantwise_c = alpha_enet*lambda_enet1,
+                             b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet,
+                             invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                              orthantwise_start = 0,
                              orthantwise_end = ncol(Z_p) )
   b_p = init_Lc1_penalized$par
   
   init_Lc2_penalized = lbfgs(lc2_elastic_penalized_min, grad_lc2_elastic_penalized_min, vars = beta_p,  
-                             alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet2,
+                             alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet,
                              Time=Time, Delta=Delta,
-                             invisible=1, orthantwise_c = alpha_enet*lambda_enet2,
+                             invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                              orthantwise_start = 0,
                              orthantwise_end = ncol(X_p) )
   beta_p = init_Lc2_penalized$par 
   
   
   init_Lc1_unpenalized = lbfgs(lc1_elastic_unpenalized_min, grad_lc1_elastic_unpenalized_min, vars = c(b0,b_u), 
-                               b_p = b_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha=alpha_enet, lambda=lambda_enet1,
+                               b_p = b_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha=alpha_enet, lambda=lambda_enet,
                                invisible = 1, orthantwise_c = 0 )
   b0 = init_Lc1_unpenalized$par[1]
   b_u = init_Lc1_unpenalized$par[2:(ncol(Z_u)+1)]
   
   init_Lc2_unpenalized = lbfgs(lc2_elastic_unpenalized_min, grad_lc2_elastic_unpenalized_min, vars = c(log(alpha),log(gammaa),beta_u),
-                               beta_p= beta_p, X_u= X_u, X_p=X_p, c_i = c_i, alpha_enet=alpha_enet, lambda=lambda_enet2, Time = Time, Delta = Delta,
+                               beta_p= beta_p, X_u= X_u, X_p=X_p, c_i = c_i, alpha_enet=alpha_enet, lambda=lambda_enet, Time = Time, Delta = Delta,
                                invisible = 1, orthantwise_c = 0 )
   alpha = exp( init_Lc2_unpenalized$par[1] )
   gammaa = exp( init_Lc2_unpenalized$par[2] )
@@ -210,29 +210,29 @@ EM_frailty_High_Cure_Adaptive_Enet_Initial <- function(X_u, X_p, Z_u, Z_p, Time,
   
   ## optimization of un-penalized and penalized variables separately based on the previous estimates of (b0,b_u,b_p) and beta_p
   init_Lc1_penalized = lbfgs(lc1_elastic_penalized_min, grad_lc1_elastic_penalized_min, vars = b_p, 
-                             b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet1,
-                             invisible=1, orthantwise_c = alpha_enet*lambda_enet1,
+                             b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet,
+                             invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                              orthantwise_start = 0,
                              orthantwise_end = ncol(Z_p) )
   b_p = init_Lc1_penalized$par
   
   init_Lc2_penalized = lbfgs(lc2_elastic_penalized_min, grad_lc2_elastic_penalized_min, vars = beta_p,  
-                             alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet2,
+                             alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet,
                              Time=Time, Delta=Delta,
-                             invisible=1, orthantwise_c = alpha_enet*lambda_enet2,
+                             invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                              orthantwise_start = 0,
                              orthantwise_end = ncol(X_p) )
   beta_p = init_Lc2_penalized$par 
   
   
   init_Lc1_unpenalized = lbfgs(lc1_elastic_unpenalized_min, grad_lc1_elastic_unpenalized_min, vars = c(b0,b_u), 
-                               b_p = b_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha=alpha_enet, lambda=lambda_enet1,
+                               b_p = b_p, Z_u=Z_u, Z_p = Z_p, pir = pir, alpha=alpha_enet, lambda=lambda_enet,
                                invisible = 1, orthantwise_c = 0 )
   b0 = init_Lc1_unpenalized$par[1]
   b_u = init_Lc1_unpenalized$par[2:(ncol(Z_u)+1)]
   
   init_Lc2_unpenalized = lbfgs(lc2_elastic_unpenalized_min, grad_lc2_elastic_unpenalized_min, vars = c(log(alpha),log(gammaa),beta_u),
-                               beta_p= beta_p, X_u= X_u, X_p=X_p, c_i = c_i, alpha_enet=alpha_enet, lambda=lambda_enet2, Time = Time, Delta = Delta,
+                               beta_p= beta_p, X_u= X_u, X_p=X_p, c_i = c_i, alpha_enet=alpha_enet, lambda=lambda_enet, Time = Time, Delta = Delta,
                                invisible = 1, orthantwise_c = 0 )
   alpha = exp( init_Lc2_unpenalized$par[1] )
   gammaa = exp( init_Lc2_unpenalized$par[2] )
@@ -257,8 +257,8 @@ EM_frailty_High_Cure_Adaptive_Enet_Initial <- function(X_u, X_p, Z_u, Z_p, Time,
     
     ## optimization of the unpenalized and penalized variables for the weighted log-likelihood functions separately based on the last estimates of values of (b0,b_u,b_p) and beta_p
     out_Lc1_penalized = lbfgs(lc1_weighted_elastic_penalized_min, grad_lc1_weighted_elastic_penalized_min, vars = bT_p, par_int = bp_weights, 
-                              b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet1,
-                              invisible=1, orthantwise_c = alpha_enet*lambda_enet1,
+                              b0 = b0, b_u = b_u, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha = alpha_enet, lambda = lambda_enet,
+                              invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                               orthantwise_start = 0,
                               orthantwise_end = ncol(Z_p) )
     bT_p = out_Lc1_penalized$par # solving weighted equation wrt the b_tilda
@@ -266,9 +266,9 @@ EM_frailty_High_Cure_Adaptive_Enet_Initial <- function(X_u, X_p, Z_u, Z_p, Time,
     bp_weights_new = abs(b_p) # new_weights od b_p for the next step
     
     out_Lc2_penalized = lbfgs(lc2_weighted_elastic_penalized_min, grad_lc2_weighted_elastic_penalized_min, vars = betaT_p, par_int = betap_weights, 
-                              alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet2,
+                              alpha=alpha, gammaa=gammaa, beta_u=beta_u, X_u = X_u, X_p = X_p, c_i=c_i, alpha_enet = alpha_enet, lambda = lambda_enet,
                               Time=Time, Delta=Delta,
-                              invisible=1, orthantwise_c = alpha_enet*lambda_enet2,
+                              invisible=1, orthantwise_c = alpha_enet*lambda_enet,
                               orthantwise_start = 0,
                               orthantwise_end = ncol(X_p) )
     betaT_p = out_Lc2_penalized$par
@@ -277,13 +277,13 @@ EM_frailty_High_Cure_Adaptive_Enet_Initial <- function(X_u, X_p, Z_u, Z_p, Time,
     
     ## for the unpenalized parameters
     out_Lc1_unpenalized = lbfgs(lc1_weighted_elastic_unpenalized_min, grad_weighted_lc1_elastic_unpenalized_min, vars = c(b0,b_u), par_int = bp_weights,
-                                bT_p = bT_p, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha_enet = alpha_enet, lambda_enet1 = lambda_enet1,
+                                bT_p = bT_p, Z_u = Z_u, Z_p = Z_p, pir = pir, alpha_enet = alpha_enet, lambda_enet = lambda_enet,
                                 invisible = 1, orthantwise_c = 0 )
     b0 = out_Lc1_unpenalized$par[1]
     b_u = out_Lc1_unpenalized$par[2:(ncol(Z_u)+1)]
     
     out_Lc2_unpenalized = lbfgs(lc2_weighted_elastic_unpenalized_min, grad_lc2_weighted_elastic_unpenalized_min, vars = c(log(alpha),log(gammaa),beta_u), par_int = betap_weights,
-                                betaT_p = betaT_p, X_u = X_u, X_p = X_p, c_i = c_i, alpha_enet = alpha_enet, lambda_enet2 = lambda_enet2, 
+                                betaT_p = betaT_p, X_u = X_u, X_p = X_p, c_i = c_i, alpha_enet = alpha_enet, lambda_enet = lambda_enet, 
                                 Time = Time, Delta = Delta,
                                 invisible = 1, orthantwise_c = 0 )
     alpha = exp( out_Lc2_unpenalized$par[1] )
@@ -733,7 +733,7 @@ EM_frailty_Cure_Oracle <- function( X_u, X_p, Z_u, Z_p, Time, Delta, nIter, tol1
   
   init_fit_Lc3 = lbfgs(lc_3, grad_lc_3, vars= theta, Delta=Delta, a_i=a_i, b_i=b_i, invisible = 1, orthantwise_c = 0 )
   theta = init_fit_Lc3$par
-  llp3_0 = -init_fit_Lc3$value
+  llp3_0 = ifelse(-init_fit_Lc3$value !="NaN", -init_fit_Lc3$value, 0)
 
   step = 1
   llp1 = llp2 = llp3 = numeric()

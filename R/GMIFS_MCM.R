@@ -200,10 +200,7 @@ gmifs_Vfit <- function(X_u, X_p, W_u, W_p, time, delta, cure_cutoff, nIter, tol,
   
   ## create folds for CV based on  X_u_CV, Z_u_CV,... , Delta_CV 
   set.seed(data.seed)  
-  folds_i = sample(rep(1:n_folds, length.out = length(Time_CV)))
-  
-  train_out =  matrix(list(NA), nrow = n_lambda, ncol = n_folds )
-  C_matrix = aic = bic = Obs_Loglik = iteration = non.zeros.bp =  non.zeros.betap = theta = lambda.update = matrix( NA, nrow = n_lambda, ncol = n_folds  )
+  folds_i = sample(rep(1:n_folds, length.out = length(time_CV)))
   Cstat = matrix(NA, nIter, n_folds)
   
   for (k in 1:n_folds) {
