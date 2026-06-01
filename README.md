@@ -10,15 +10,16 @@ A set of prognostic biomarkers is then derived from selected genes, and subseque
 
 **A prognostic risk score index** based on the identified biomarkers is proposed and validated by exploring the patients' survival.
  
-
+ 
 ## Citation
 
- > Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria (2024). **"A Weibull Mixture Cure Frailty Model for High-dimensional Covariates"**. arXiv DOI: [10.48550/arXiv.2401.06575](https://arxiv.org/abs/2401.06575) 
+ > Kızılaslan, Fatih, Swanson, David M., and Vitelli, Valeria (2025). **"A Weibull Mixture Cure Frailty Model for High-dimensional Covariates"**. Statistical Methods in Medical Research, 34(6): 1192-1218. 
+doi: [doi.org/10.1177/09622802251327687](https://doi.org/10.1177/09622802251327687)
 
 
 ## R
 
-It includes all the source code necessary to run the introduced and utilized methods in Kızılaslan, Swanson and Vitelli (2024).
+It includes all the source code necessary to run the introduced and utilized methods in Kızılaslan, Swanson and Vitelli (2025).
 
 ``application.R`` includes the code for applying the methods to the TCGA-BRCA RNA-seq data.
 
@@ -58,7 +59,7 @@ We present all the files in the Supplementary Materials of the study.
 
 ## References
 
- > Fu, H., Nicolet, D., Mrózek, K., Stone, R.M., Eisfeld, A.K., Byrd, J.C., Archer, K.J. (2022). Controlled variable selection in Weibull mixture cure models for high‐dimensional data. Statistics in Medicine, 41 (22), 4340-4366. DOI: [10.1002/sim.9513](https://doi.org/10.1002/sim.9513)
+Fu, H., Nicolet, D., Mrózek, K., Stone, R.M., Eisfeld, A.K., Byrd, J.C., Archer, K.J. (2022). Controlled variable selection in Weibull mixture cure models for high‐dimensional data. Statistics in Medicine, 41 (22), 4340-4366. doi: [10.1002/sim.9513](https://doi.org/10.1002/sim.9513)
 
- > Li, L., Liu, ZP. (2021). Detecting prognostic biomarkers of breast cancer by regularized Cox proportional hazards models. Journal of Translational Medicine, 19, 514 (2021). DOI: [10.1186/s12967-021-03180-y](https://doi.org/10.1186/s12967-021-03180-y)
+Li, L., Liu, ZP. (2021). Detecting prognostic biomarkers of breast cancer by regularized Cox proportional hazards models. Journal of Translational Medicine, 19, 514. doi: [10.1186/s12967-021-03180-y](https://doi.org/10.1186/s12967-021-03180-y)
 
